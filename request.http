@@ -1,0 +1,2 @@
+curl --location --request GET 'https://passengerservices.xs.ocean.com:8443/passenger/list?propertyCode=PC-GP&journeyDate=2021-09-03T00:00:00' \
+--header 'Authorization: Bearer LiQsDfd0vqibksGz1-lp9Di3E1Q'
