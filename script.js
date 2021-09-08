@@ -56,13 +56,21 @@ export default function (authToken) {
   );
   let success = check(res, {
     "status is 200": (r) => r.status === 200,
+    "have valid length": (r) => r.json().length > 0,
   });
 
-  console.log(JSON.parse(res.body));
-  console.log(res.json().length());
+  console.log(
+    JSON.stringify(res.json()[randomNumber(1, res.json().length)], null, "  ")
+  );
+
   if (!success) {
     ErrorCount.add(1);
     ErrorRate.add(1);
   }
   sleep(0.5);
+}
+function randomNumber(min, max) {
+  min = Math.ceil(min);
+  max = Math.floor(max);
+  return Math.floor(Math.random() * (max - min + 1)) + min;
 }
