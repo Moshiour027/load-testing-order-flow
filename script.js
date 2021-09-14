@@ -51,7 +51,7 @@ export default function (authToken) {
     },
   };
   let res = http.get(
-    "https://passengerservices.xs.ocean.com:8443/passenger/list?propertyCode=PC-GP&journeyDate=2021-09-03T00:00:00",
+    "https://passengerservices.xs.ocean.com:8443/passenger/list?propertyCode=PC-GP&journeyDate=2021-09-14T00:00:00",
     params
   );
   let success = check(res, {
@@ -59,16 +59,53 @@ export default function (authToken) {
     "have valid length": (r) => r.json().length > 0,
   });
 
-  console.log(
-    JSON.stringify(res.json()[randomNumber(1, res.json().length)], null, "  ")
-  );
-
   if (!success) {
     ErrorCount.add(1);
     ErrorRate.add(1);
   }
+
+  if (res.json().length > 0) {
+    res.json().some((passenger, index) => {
+      console.log(`Passenger ${index}`);
+      if (index === 4) {
+        return true;
+      }
+      const { firstName, lastName, bookingNumberList, birthDate } = passenger;
+
+      let loginWithReservationData = {
+        firstName,
+        lastName,
+        reservationNumber:
+          bookingNumberList.length > 0 ? bookingNumberList[0] : "",
+        birthDate,
+      };
+
+      let loginWithReservationResponse = http.post(
+        `https://oceannow.xs.ocean.com/api/loginWithReservation`,
+        JSON.stringify(loginWithReservationData),
+        {
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+
+      let isLoginWithReservationSuccess = check(loginWithReservationResponse, {
+        "created user": (r) => r.status === 200,
+      });
+
+      if (!isLoginWithReservationSuccess) {
+        ErrorCount.add(1);
+        ErrorRate.add(1);
+      } else {
+        console.log(
+          JSON.stringify(loginWithReservationResponse.json(), null, "  ")
+        );
+      }
+    });
+  }
+
   sleep(0.5);
 }
+
 function randomNumber(min, max) {
   min = Math.ceil(min);
   max = Math.floor(max);
