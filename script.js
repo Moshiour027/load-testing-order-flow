@@ -34,29 +34,32 @@ export default function (authToken) {
   let passengerList = getPassengerList(authToken);
 
   if (passengerList && passengerList.length > 0) {
+    const { firstName, lastName, bookingNumberList, birthDate } =
+      passengerList[0];
+    const loginWithReservationResponse = loginWithReservation(
+      firstName,
+      lastName,
+      bookingNumberList,
+      birthDate
+    );
+    const reservationToken = loginWithReservationResponse.json("authToken");
+    console.log("resrvationToken", reservationToken);
+    const menus = getMenuItems(reservationToken);
+
+    const angry_orchad = menus.categories
+      .filter((category) => category.name === "Beverages")[0]
+      .subcategories.filter(
+        (subcategory) => subcategory.name === "Beer & Cider"
+      )[0]
+      .items.filter((item) => item.name === "Angry Orchard");
+
+    console.log(JSON.stringify(angry_orchad, null, "  "));
+
     passengerList.some((passenger, index) => {
       console.log(`Passenger ${index}`);
       if (index === 2) {
         return true;
       }
-      const { firstName, lastName, bookingNumberList, birthDate } = passenger;
-
-      const loginWithReservationResponse = loginWithReservation(
-        firstName,
-        lastName,
-        bookingNumberList,
-        birthDate
-      );
-      const reservationToken = loginWithReservationResponse.json("authToken");
-      console.log("resrvationToken", reservationToken);
-      const menus = getMenuItems(reservationToken);
-
-      const beerAndCiders = menus.categories
-        .filter((category) => category.name === "Beverages")
-        .subcategories.filter(
-          (subcategory) => subcategory.name === "Beer & Cider"
-        );
-      console.log(JSON.stringify(beerAndCiders, null, "  "));
     });
   }
 
