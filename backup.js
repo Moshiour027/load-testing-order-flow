@@ -32,18 +32,8 @@ function openImLogin() {
 
 export default function (authToken) {
   let passengerList = getPassengerList(authToken);
-
   if (passengerList && passengerList.length > 0) {
-    const { firstName, lastName, bookingNumberList, birthDate } =
-      passengerList[randomNumber(0, passengerList.length - 1)];
-    const loginWithReservationResponse = loginWithReservation(
-      firstName,
-      lastName,
-      bookingNumberList,
-      birthDate
-    );
-    const reservationToken = loginWithReservationResponse.json("authToken");
-    console.log("resrvationToken", reservationToken);
+    const reservationToken = getReservationToken(passengerList);
     const menus = getMenuItems(reservationToken);
 
     const angry_orchad = getAngryOrchard(menus);
@@ -51,31 +41,18 @@ export default function (authToken) {
       items: angry_orchad,
       pmid: "",
       ordertype: null,
+      customLocation: "",
       beaconColor: "FF8B00",
-      roomNumber: "B520",
+      roomNumber: "",
       originDevice: "guestappmc",
-      customLocation: {
-        x: 0,
-        y: 0,
-        poiid: "RegalPrincess.Deck11.Firezone06.BellBoxBar",
-      },
-      beaconColor: "",
-      roomNumber: null,
-      deliveryDateTime: null,
-      deviceUuid: "1cabeba853eae1aa5c990e78ba05faceb860a9a8",
     };
 
     const orderFromBasketResponse = orderFromBasket(
-      reservationToken,
+      authToken,
       order_angry_orchard
     );
-
-    console.log(JSON.stringify(orderFromBasketResponse, null, 2));
-
-    const crewLoginInfo = crewLogin();
-    console.log(JSON.stringify(crewLoginInfo, null, 2));
-
-    const crewLoginToken = crewLoginInfo.authToken;
+    console.log(JSON.stringify(orderFromBasketResponse, null, " "));
+    console.log(JSON.stringify(angry_orchad, null, "  "));
 
     passengerList.some((passenger, index) => {
       console.log(`Passenger ${index}`);
@@ -88,36 +65,28 @@ export default function (authToken) {
   sleep(0.5);
 }
 
-function getCrewOrdersByStatus(crewAuthToken, status) {
+function orderFromBasket(authToken, data) {
+  const url = new URL("https://oceannow.xs.ocean.com:8443/api/orderFromBasket");
+  url.searchParams.append("userId", "");
+  url.searchParams.append("locale", "en");
   const params = {
     headers: {
+      authorization: authToken,
       "Content-Type": "application/json",
-      Authorization: `Bearer ${crewAuthToken}`,
+      "x-application": "MedallionClass",
     },
   };
-  const url = new URL("https://oceannow.xs.ocean.com:8443/api/GetCrewOrders");
-
-  url.searchParams.append("poiid", "staterooms");
-  url.searchParams.append("locale", "en");
-
-  let res = http.get(
-    "https://passengerservices.xs.ocean.com:8443/passenger/list?propertyCode=PC-GP&journeyDate=2021-09-14T00:00:00",
-    params
-  );
-  let success = check(res, {
-    "status is 200": (r) => r.status === 200,
-    "have valid length": (r) => r.json().length > 0,
+  let res = http.post(url.toString(), params, JSON.stringify(data));
+  let isOrderSuccessFull = check(res, {
+    "Order Placed": (r) => r.status === 200,
   });
-
-  if (!success) {
+  if (!isMenuFetchedSuccess) {
     ErrorCount.add(1);
     ErrorRate.add(1);
   } else {
     return res.json();
   }
 }
-
-function changeOrderStatus() {}
 
 function getAngryOrchard(menus) {
   return menus.categories
@@ -126,6 +95,20 @@ function getAngryOrchard(menus) {
       (subcategory) => subcategory.name === "Beer & Cider"
     )[0]
     .items.filter((item) => item.name === "Angry Orchard");
+}
+
+function getReservationToken(passengerList) {
+  const { firstName, lastName, bookingNumberList, birthDate } =
+    passengerList[0];
+  const loginWithReservationResponse = loginWithReservation(
+    firstName,
+    lastName,
+    bookingNumberList,
+    birthDate
+  );
+  console.log(JSON.stringify(loginWithReservationResponse.json(), null, "  "));
+  const reservationToken = loginWithReservationResponse.json("authToken");
+  return reservationToken;
 }
 
 function loginWithReservation(
@@ -161,14 +144,14 @@ function loginWithReservation(
 }
 
 function getPassengerList(authToken) {
-  const params = {
+  var params = {
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${authToken}`,
     },
   };
   let res = http.get(
-    "https://passengerservices.xs.ocean.com:8443/passenger/list?propertyCode=PC-GP&journeyDate=2021-09-14T00:00:00",
+    "https://passengerservices.xs.ocean.com:8443/passenger/list?propertyCode=PC-GP&journeyDate=2021-09-20T00:00:00",
     params
   );
   let success = check(res, {
@@ -186,17 +169,14 @@ function getPassengerList(authToken) {
 
 function getMenuItems(authToken) {
   const url = new URL("https://oceannow.xs.ocean.com:8443/api/getMenuByPoiId");
-
   url.searchParams.append("poiid", "staterooms");
   url.searchParams.append("locale", "en");
-
   const params = {
     headers: {
       authorization: authToken,
       "Content-Type": "application/json",
     },
   };
-
   let res = http.get(url.toString(), params);
   let isMenuFetchedSuccess = check(res, {
     "Menu Fetched": (r) => r.status === 200,
@@ -205,67 +185,11 @@ function getMenuItems(authToken) {
   if (!isMenuFetchedSuccess) {
     ErrorCount.add(1);
     ErrorRate.add(1);
+    console.log(JSON.stringify(res.json(), null, " "));
   } else {
     return res.json();
   }
 }
-
-function crewLogin() {
-  const url = new URL("https://oceannow.xs.ocean.com:8443/api/loginCrew");
-  const params = {
-    headers: {
-      "Content-Type": "application/json",
-    },
-  };
-  const data = {
-    username: "ONowAdmiral",
-    password: "ONwelcome1",
-  };
-
-  let res = http.post(url.toString(), JSON.stringify(data), params);
-
-  let isOrderSuccessFull = check(res, {
-    "Order Placed": (r) => r.status === 200,
-  });
-
-  if (!isOrderSuccessFull) {
-    ErrorCount.add(1);
-    ErrorRate.add(1);
-    console.log(JSON.stringify(res.json(), null, "  "));
-  } else {
-    return res.json();
-  }
-}
-
-function updateOrderStatus() {}
-
-function orderFromBasket(authToken, data) {
-  const url = new URL("https://oceannow.xs.ocean.com:8443/api/orderFromBasket");
-  url.searchParams.append("userId", "");
-  url.searchParams.append("locale", "en");
-
-  const params = {
-    headers: {
-      authorization: authToken,
-      "Content-Type": "application/json",
-      "x-application": "MedallionClass",
-    },
-  };
-  let res = http.post(url.toString(), JSON.stringify(data), params);
-
-  let isOrderSuccessFull = check(res, {
-    "Order Placed": (r) => r.status === 200,
-  });
-
-  if (!isOrderSuccessFull) {
-    ErrorCount.add(1);
-    ErrorRate.add(1);
-    console.log(JSON.stringify(res.json(), null, "  "));
-  } else {
-    return res.json();
-  }
-}
-
 
 function randomNumber(min, max) {
   min = Math.ceil(min);

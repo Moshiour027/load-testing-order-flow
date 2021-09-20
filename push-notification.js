@@ -73,8 +73,28 @@ export default function ({ authToken, userId }) {
 
   sleep(0.5);
 }
-function randomNumber(min, max) {
-  min = Math.ceil(min);
-  max = Math.floor(max);
-  return Math.floor(Math.random() * (max - min + 1)) + min;
+
+
+
+function orderFromBasket(authToken, data) {
+  const url = new URL("https://oceannow.xs.ocean.com:8443/api/orderFromBasket");
+  url.searchParams.append("userId", "");
+  url.searchParams.append("locale", "en");
+  const params = {
+    headers: {
+      authorization: authToken,
+      "Content-Type": "application/json",
+      "x-application": "MedallionClass",
+    },
+  };
+  let res = http.post(url.toString(), params, JSON.stringify(data));
+  let isOrderFromBasketSuccess = check(res, {
+    "Order from Basket": (r) => r.status === 200,
+  });
+  if (!isOrderFromBasketSuccess) {
+    ErrorCount.add(1);
+    ErrorRate.add(1);
+  } else {
+    return res.json();
+  }
 }
