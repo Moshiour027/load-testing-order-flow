@@ -69,13 +69,18 @@ export default function (authToken) {
       reservationToken,
       order_angry_orchard
     );
-
-    console.log(JSON.stringify(orderFromBasketResponse, null, 2));
+    const guestOrderId = orderFromBasketResponse.orderId;
+    console.log("guestOrderId", guestOrderId);
 
     const crewLoginInfo = crewLogin();
-    console.log(JSON.stringify(crewLoginInfo, null, 2));
-
     const crewLoginToken = crewLoginInfo.authToken;
+    console.log("crewLoginToken", crewLoginToken);
+    const createdOrders = getCrewOrdersByStatus(
+      crewLoginToken,
+      "created",
+      guestOrderId
+    );
+    console.log(JSON.stringify(createdOrders, null, 2));
 
     passengerList.some((passenger, index) => {
       console.log(`Passenger ${index}`);
@@ -88,32 +93,34 @@ export default function (authToken) {
   sleep(0.5);
 }
 
-function getCrewOrdersByStatus(crewAuthToken, status) {
+function getCrewOrdersByStatus(crewAuthToken, status, guestOrderId) {
   const params = {
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${crewAuthToken}`,
+      Authorization: crewAuthToken,
     },
   };
-  const url = new URL("https://oceannow.xs.ocean.com:8443/api/GetCrewOrders");
+  const url = new URL("https://ordermanager.xs.ocean.com/api/GetCrewOrders");
 
-  url.searchParams.append("poiid", "staterooms");
-  url.searchParams.append("locale", "en");
+  url.searchParams.append("status", status);
+  url.searchParams.append("role", "manager");
 
-  let res = http.get(
-    "https://passengerservices.xs.ocean.com:8443/passenger/list?propertyCode=PC-GP&journeyDate=2021-09-14T00:00:00",
-    params
-  );
+  let res = http.get(url.toString(), params);
+
   let success = check(res, {
     "status is 200": (r) => r.status === 200,
-    "have valid length": (r) => r.json().length > 0,
   });
 
   if (!success) {
     ErrorCount.add(1);
     ErrorRate.add(1);
   } else {
-    return res.json();
+    const createdOrders = res.json();
+    const filteredByGuestOrderId = createdOrders.creworders.filter(
+      (order) => order.uiid === guestOrderId
+    );
+
+    console.log(JSON.stringify(filteredByGuestOrderId, null, 2));
   }
 }
 
