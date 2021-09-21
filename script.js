@@ -25,7 +25,7 @@ function openImLogin() {
     params
   );
 
-  check(res, { "created user": (r) => r.status === 200 });
+  check(res, { "Iam Login successfull": (r) => r.status === 200 });
   let authToken = res.json("access_token");
   return authToken;
 }
@@ -43,7 +43,7 @@ export default function (authToken) {
       birthDate
     );
     const reservationToken = loginWithReservationResponse.json("authToken");
-    console.log("resrvationToken", reservationToken);
+    const guestUUID = loginWithReservationResponse.json("userId");
     const menus = getMenuItems(reservationToken);
 
     const angry_orchad = getAngryOrchard(menus);
@@ -69,18 +69,69 @@ export default function (authToken) {
       reservationToken,
       order_angry_orchard
     );
-    const guestOrderId = orderFromBasketResponse.orderId;
-    console.log("guestOrderId", guestOrderId);
 
     const crewLoginInfo = crewLogin();
     const crewLoginToken = crewLoginInfo.authToken;
-    console.log("crewLoginToken", crewLoginToken);
+    const crewUserId = crewLoginInfo.userId;
+
     const createdOrders = getCrewOrdersByStatus(
       crewLoginToken,
       "created",
-      guestOrderId
+      guestUUID
     );
-    console.log(JSON.stringify(createdOrders, null, 2));
+
+    if (createdOrders && createdOrders.length > 0) {
+      createdOrders.forEach((crewOrder) => {
+        const setCrewOrderStatus = updateOrderStatus(
+          crewLoginToken,
+          crewOrder.crew_orderid,
+          "preparing",
+          crewOrder.poiid,
+          crewUserId
+        );
+        console.log(JSON.stringify(setCrewOrderStatus, null, 2));
+      });
+    }
+
+    const preparingOrders = getCrewOrdersByStatus(
+      crewLoginToken,
+      "preparing",
+      guestUUID
+    );
+    console.log("fetched preparing");
+    if (preparingOrders && preparingOrders.length > 0) {
+      preparingOrders.forEach((crewOrder) => {
+        const setCrewOrderStatus = updateOrderStatus(
+          crewLoginToken,
+          crewOrder.crew_orderid,
+          "PREPARED",
+          crewOrder.poiid,
+          crewUserId
+        );
+        console.log(JSON.stringify(setCrewOrderStatus, null, 2));
+      });
+    }
+    console.log("updated to prepared");
+
+    const preparedOrders = getCrewOrdersByStatus(
+      crewLoginToken,
+      "PREPARED",
+      guestUUID
+    );
+    console.log("PREPARED fetched");
+
+    if (preparedOrders && preparedOrders.length > 0) {
+      preparedOrders.forEach((crewOrder) => {
+        const setCrewOrderStatus = updateOrderStatus(
+          crewLoginToken,
+          crewOrder.crew_orderid,
+          "SERVING",
+          crewOrder.poiid,
+          crewUserId
+        );
+        console.log(JSON.stringify(setCrewOrderStatus, null, 2));
+      });
+    }
 
     passengerList.some((passenger, index) => {
       console.log(`Passenger ${index}`);
@@ -119,12 +170,9 @@ function getCrewOrdersByStatus(crewAuthToken, status, guestOrderId) {
     const filteredByGuestOrderId = createdOrders.creworders.filter(
       (order) => order.uiid === guestOrderId
     );
-
-    console.log(JSON.stringify(filteredByGuestOrderId, null, 2));
+    return filteredByGuestOrderId;
   }
 }
-
-function changeOrderStatus() {}
 
 function getAngryOrchard(menus) {
   return menus.categories
@@ -179,8 +227,7 @@ function getPassengerList(authToken) {
     params
   );
   let success = check(res, {
-    "status is 200": (r) => r.status === 200,
-    "have valid length": (r) => r.json().length > 0,
+    "Get Passenger List Successful": (r) => r.status === 200,
   });
 
   if (!success) {
@@ -231,11 +278,11 @@ function crewLogin() {
 
   let res = http.post(url.toString(), JSON.stringify(data), params);
 
-  let isOrderSuccessFull = check(res, {
-    "Order Placed": (r) => r.status === 200,
+  let crewLoginSuccessful = check(res, {
+    "Crew Login Successful": (r) => r.status === 200,
   });
 
-  if (!isOrderSuccessFull) {
+  if (!crewLoginSuccessful) {
     ErrorCount.add(1);
     ErrorRate.add(1);
     console.log(JSON.stringify(res.json(), null, "  "));
@@ -244,7 +291,37 @@ function crewLogin() {
   }
 }
 
-function updateOrderStatus() {}
+function updateOrderStatus(authToken, crowOrderId, status, poiid, crew_id) {
+  const url = new URL(
+    "https://ordermanager.xs.ocean.com/api/SetCrewOrderStateV2"
+  );
+  const params = {
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: authToken,
+    },
+  };
+  const data = {
+    id: crowOrderId,
+    status,
+    poiid,
+    crew_id,
+  };
+
+  let res = http.post(url.toString(), JSON.stringify(data), params);
+
+  let updateOrderStatusSuccess = check(res, {
+    "Update Order Status Successful + ${status}": (r) => r.status === 200,
+  });
+
+  if (!updateOrderStatusSuccess) {
+    ErrorCount.add(1);
+    ErrorRate.add(1);
+    console.log(JSON.stringify(res.json(), null, "  "));
+  } else {
+    return res.json();
+  }
+}
 
 function orderFromBasket(authToken, data) {
   const url = new URL("https://oceannow.xs.ocean.com:8443/api/orderFromBasket");
