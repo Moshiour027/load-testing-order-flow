@@ -47,6 +47,7 @@ export default function (authToken) {
     const menus = getMenuItems(reservationToken);
 
     const angry_orchad = getAngryOrchard(menus);
+    return;
     const order_angry_orchard = {
       items: angry_orchad,
       pmid: "",
@@ -99,6 +100,7 @@ export default function (authToken) {
       guestUUID
     );
     console.log("fetched preparing");
+
     if (preparingOrders && preparingOrders.length > 0) {
       preparingOrders.forEach((crewOrder) => {
         const setCrewOrderStatus = updateOrderStatus(
@@ -111,6 +113,7 @@ export default function (authToken) {
         console.log(JSON.stringify(setCrewOrderStatus, null, 2));
       });
     }
+
     console.log("updated to prepared");
 
     const preparedOrders = getCrewOrdersByStatus(
@@ -118,6 +121,7 @@ export default function (authToken) {
       "PREPARED",
       guestUUID
     );
+
     console.log("PREPARED fetched");
 
     if (preparedOrders && preparedOrders.length > 0) {
@@ -126,6 +130,27 @@ export default function (authToken) {
           crewLoginToken,
           crewOrder.crew_orderid,
           "SERVING",
+          crewOrder.poiid,
+          crewUserId
+        );
+        console.log(JSON.stringify(setCrewOrderStatus, null, 2));
+      });
+    }
+
+    const servingOrders = getCrewOrdersByStatus(
+      crewLoginToken,
+      "SERVING",
+      guestUUID
+    );
+
+    console.log("SERVING fetched");
+
+    if (servingOrders && servingOrders.length > 0) {
+      servingOrders.forEach((crewOrder) => {
+        const setCrewOrderStatus = updateOrderStatus(
+          crewLoginToken,
+          crewOrder.crew_orderid,
+          "DELIVERED",
           crewOrder.poiid,
           crewUserId
         );
@@ -173,14 +198,24 @@ function getCrewOrdersByStatus(crewAuthToken, status, guestOrderId) {
     return filteredByGuestOrderId;
   }
 }
+// sub =B1C67747484C2BF3E0550C05BB62FDBC or AC9D8748A152542EE05504EDDACE4E4E
 
 function getAngryOrchard(menus) {
   return menus.categories
-    .filter((category) => category.name === "Beverages")[0]
+    .filter((category) => category.id === "B1C6774747FC2BF3E0550C05BB62FDBC")[0]
     .subcategories.filter(
-      (subcategory) => subcategory.name === "Beer & Cider"
+      (subcategory) => subcategory.id === "B1C67747484C2BF3E0550C05BB62FDBC"
     )[0]
-    .items.filter((item) => item.name === "Angry Orchard");
+    .items.filter((item) => item.id === "B1C677474A2F2BF3E0550C05BB62FDBC");
+}
+
+function mapAllItems() {
+  menus.categories
+    .filter((category) => category.id === "B1C6774747FC2BF3E0550C05BB62FDBC")[0]
+    .subcategories.filter(
+      (subcategory) => subcategory.id === "B1C67747484C2BF3E0550C05BB62FDBC"
+    )[0]
+    .items.filter((item) => item.id === "B1C677474A2F2BF3E0550C05BB62FDBC");
 }
 
 function loginWithReservation(
@@ -223,7 +258,7 @@ function getPassengerList(authToken) {
     },
   };
   let res = http.get(
-    "https://passengerservices.xs.ocean.com:8443/passenger/list?propertyCode=PC-GP&journeyDate=2021-09-14T00:00:00",
+    "https://passengerservices.xs.ocean.com:8443/passenger/list?propertyCode=PC-GP&journeyDate=2021-09-24T00:00:00",
     params
   );
   let success = check(res, {
@@ -349,7 +384,6 @@ function orderFromBasket(authToken, data) {
     return res.json();
   }
 }
-
 
 function randomNumber(min, max) {
   min = Math.ceil(min);
